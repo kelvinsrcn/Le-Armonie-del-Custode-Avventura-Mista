@@ -1,0 +1,90 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Starter",
+            "request": "launch",
+            "mainClass": "Other.Starter",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "RecordClient",
+            "request": "launch",
+            "mainClass": "Classifica.RecordClient",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "RecordServer",
+            "request": "launch",
+            "mainClass": "Classifica.RecordServer",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "Client",
+            "request": "launch",
+            "mainClass": "Classifica.Client",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "Server",
+            "request": "launch",
+            "mainClass": "Classifica.Server",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "InterfacciaFinale",
+            "request": "launch",
+            "mainClass": "Grafica.InterfacciaFinale",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "InterfacciaInventario",
+            "request": "launch",
+            "mainClass": "Grafica.InterfacciaInventario",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "InterfacciaGioco",
+            "request": "launch",
+            "mainClass": "Grafica.InterfacciaGioco",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "GestioneDB",
+            "request": "launch",
+            "mainClass": "Other.GestioneDB",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "QuizAPI",
+            "request": "launch",
+            "mainClass": "Rest.QuizAPI",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "java",
+            "name": "InterfacciaInizio",
+            "request": "launch",
+            "mainClass": "Grafica.InterfacciaInizio",
+            "projectName": "LeArmonieDelCustode"
+        },
+        {
+            "type": "jdk",
+            "request": "launch",
+            "name": "Launch Java App"
+        }
+    ]
+}
