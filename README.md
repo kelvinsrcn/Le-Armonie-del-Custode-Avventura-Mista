@@ -1,5 +1,5 @@
 # Le Armonie del Custode
-Progetto in Java, riguardante un'avventura testuale con Interfaccia Grafica, realizzato da: <br>
+Videogioco realizzato in Java, da: <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp;[Alessandro Pellegrino](https://github.com/PellegrinoAl) <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp;[Kevin Saracino](https://github.com/kelvinsrcn) <br>
 
