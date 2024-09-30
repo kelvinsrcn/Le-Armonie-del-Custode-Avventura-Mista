@@ -66,7 +66,7 @@ public class Dialogo implements Serializable {
     }
     public void changeDialogo(){
         try {
-            GestioneDB.getInstance().changeDialogo(Dialogo.this, 0);
+            GestioneDB.getInstance().changeDialogo(Dialogo.this);
         } catch (Exception e) {
             Logger.getLogger(Dialogo.class.getName()).log(Level.SEVERE, null, e);
         }

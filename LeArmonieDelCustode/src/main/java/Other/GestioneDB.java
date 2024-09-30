@@ -9,9 +9,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.h2.tools.RunScript;
 
@@ -46,11 +48,42 @@ public class GestioneDB {
      * 
      * @throws SQLException
      */
-    private void connect() throws SQLException {
+    public void connect() throws SQLException {
         proprietaDB = new Properties();
         proprietaDB.setProperty("user", "kevin");
         proprietaDB.setProperty("password", "prova");
         conn = DriverManager.getConnection("jdbc:h2:./database", proprietaDB);
+    }
+
+    /**
+     * Esegue una funzione SQL con tentativi di ripetizione in caso di errore.
+     * 
+     * @param function La funzione SQL da eseguire
+     * @return Il risultato della funzione
+     * @throws SQLException Se si verifica un errore durante l'esecuzione della
+     *                      funzione dopo il numero massimo di tentativi
+     */
+    private <T> T executeWithRetry(SqlFunction<T> function) throws SQLException {
+        int retryCount = 0, max_retries = 5;
+        while (retryCount < max_retries) {
+            try {
+                return function.apply();
+            } catch (SQLException e) {
+                if (e.getSQLState().equals("42S04")) {
+                    try {
+                        crea();
+                    } catch (FileNotFoundException e_file) {
+                        throw new SQLException("File not found", e_file);
+                    }
+                } else if (e.getSQLState().equals("08003")) {
+                    connect();
+                } else {
+                    throw e;
+                }
+                retryCount++;
+            }
+        }
+        throw new SQLException("Operation failed after " + max_retries + " attempts");
     }
 
     /**
@@ -70,199 +103,170 @@ public class GestioneDB {
      * @throws FileNotFoundException
      * @throws SQLException
      */
-    public Casella loadMappa(final List<Casella> caselle, int tentativi) throws FileNotFoundException, SQLException {
-        Casella start = null;
-        Map<Integer, Casella> mapCaselle = new HashMap<>();
-        try {
-            String getCaselle = "SELECT * FROM Casella";
-            Statement stm = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_READ_ONLY);
-            ResultSet rs = stm.executeQuery(getCaselle);
-            while (rs.next()) {
-                Casella casella = new Casella(rs.getInt(1));
-                casella.setNome(rs.getString(2));
-                casella.setDescrizioneIniziale(rs.getString("descrizioneIniziale"));
-                casella.setDescrizioneAggiuntiva(rs.getString("descrizioneAggiuntiva"));
-                casella.setDescrizioneAggiornata(rs.getString("descrizioneAggiornata"));
-                casella.setEnterable(rs.getBoolean("enterable"));
-                mapCaselle.put(casella.getId(), casella);
-                caselle.add(casella);
-                loadItems(casella, 0);
-
-                /*
-                 * DEBUG per inizio rapido
-                 * 901 Casa Luca
-                 * 107 Castello
-                 */
-                if (casella.getId() == 901) {
-                    start = casella;
+    public Casella loadMappa(final List<Casella> caselle) throws SQLException {
+        return executeWithRetry(() -> {
+            Casella start = null;
+            String query = "SELECT * FROM Casella";
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery(query)) {
+                while (rs.next()) {
+                    Casella casella = creaCasellaDaResultSet(rs);
+                    List<Item> items = getItems(casella.getId());
+                    for (Item item : items) {
+                        casella.addOggetto(item, 1);
+                    }
+                    caselle.add(casella);
+                    if (casella.getId() == 901) {
+                        start = casella;
+                    }
                 }
             }
-            rs.beforeFirst();
-            while (rs.next()) {
-                Casella casella = mapCaselle.get(rs.getInt(1));
-                casella.setNorth(mapCaselle.get(rs.getInt(6)));
-                casella.setSouth(mapCaselle.get(rs.getInt(7)));
-                casella.setEast(mapCaselle.get(rs.getInt(8)));
-                casella.setWest(mapCaselle.get(rs.getInt(9)));
-            }
+            connectCaselle(caselle);
 
-            rs.close();
-        } catch (org.h2.jdbc.JdbcSQLNonTransientException e) {
-            tentativi++;
-            connect();
-            if (tentativi < 5)
-                start = loadMappa(caselle, tentativi);
-            else
-                throw e;
-        } catch (SQLException e) {
-            tentativi++;
-            crea();
-            if (tentativi < 5)
-                start = loadMappa(caselle, tentativi);
-            else
-                throw e;
-        }
-
-        return start;
+            return start;
+        });
     }
 
-    public List<Dialogo> loadDialoghi(boolean priority, int tentativi) throws SQLException, FileNotFoundException {
-        List<Dialogo> dialoghi = new ArrayList<>();
-        try {
-            String getDialoghi = "SELECT * FROM Dialoghi WHERE priorita = " + priority + ";";
-            Statement stm = conn.createStatement();
-            try (ResultSet rs = stm.executeQuery(getDialoghi)) {
+    private Casella creaCasellaDaResultSet(ResultSet rs) throws SQLException {
+        Casella casella = new Casella(rs.getInt(1));
+        casella.setNome(rs.getString(2));
+        casella.setDescrizioneIniziale(rs.getString("descrizioneIniziale"));
+        casella.setDescrizioneAggiuntiva(rs.getString("descrizioneAggiuntiva"));
+        casella.setDescrizioneAggiornata(rs.getString("descrizioneAggiornata"));
+        casella.setEnterable(rs.getBoolean("enterable"));
+        return casella;
+    }
+
+    private void connectCaselle(List<Casella> caselle) throws SQLException {
+        executeWithRetry(() -> {
+            Map<Integer, Casella> MapCaselle = new HashMap<>();
+            for (Casella c : caselle) {
+                MapCaselle.put(c.getId(), c);
+            }
+
+            String query = "SELECT * FROM ConnessioniCaselle";
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery(query)) {
+                while (rs.next()) {
+                    Casella c1 = MapCaselle.get(rs.getInt("casella_id1"));
+                    Casella c2 = MapCaselle.get(rs.getInt("casella_id2"));
+                    switch (rs.getString("direzione")) {
+                        case "n":
+                            c1.setNorth(c2);
+                            c2.setSouth(c1);
+                            break;
+                        case "s":
+                            c1.setSouth(c2);
+                            c2.setNorth(c1);
+                            break;
+                        case "e":
+                            c1.setEast(c2);
+                            c2.setWest(c1);
+                            break;
+                        case "w":
+                            c1.setWest(c2);
+                            c2.setEast(c1);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            return null;
+        });
+    }
+
+    public List<Dialogo> loadDialoghi(boolean priority) throws SQLException {
+        return executeWithRetry(() -> {
+            List<Dialogo> dialoghi = new ArrayList<>();
+            String query = "SELECT * FROM Dialoghi WHERE priorita = " + priority + ";";
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     Dialogo d = new Dialogo(rs.getInt(1));
                     d.setInfoDialogo(rs.getString(3), rs.getString(6), rs.getString(4), rs.getString(5));
                     dialoghi.add(d);
                 }
-                rs.close();
             }
-        } catch (org.h2.jdbc.JdbcSQLNonTransientException e) {
-            tentativi++;
-            connect();
-            if (tentativi < 5)
-                dialoghi = loadDialoghi(priority, tentativi);
-            else
-                throw e;
-        } catch (SQLException e) {
-            tentativi++;
-            crea();
-            if (tentativi < 5)
-                dialoghi = loadDialoghi(priority, tentativi);
-            else
-                throw e;
-        }
-
-        return dialoghi;
+            return dialoghi;
+        });
     }
 
-    public void changeDialogo(Dialogo dialogo, int tentativi) throws SQLException, FileNotFoundException {
-        try {
-            String getDialoghi = "SELECT * FROM Dialoghi WHERE priorita = " + true + " AND id = "
-                    + dialogo.getIdCasella() + ";";
-            Statement stm = conn.createStatement();
-            try (ResultSet rs = stm.executeQuery(getDialoghi)) {
+    public void changeDialogo(Dialogo dialogo) throws SQLException {
+        executeWithRetry(() -> {
+            String query = "SELECT * FROM Dialoghi WHERE priorita = " + true + " AND id = " + dialogo.getIdCasella()
+                    + ";";
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     dialogo.setInfoDialogo(rs.getString(3), rs.getString(6), rs.getString(4), rs.getString(5));
                 }
+            }
+            return null;
+        });
+    }
+
+    private List<Item> getItems(int id) throws SQLException {
+        return executeWithRetry(() -> {
+            List<Item> items = new ArrayList<>();
+            String query = "SELECT * FROM Casella_Oggetto co JOIN Oggetto o ON oggetto_id = id WHERE casella_id = "
+                    + id + ";";
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery(query)) {
+                while (rs.next()) {
+                    Item item = creaItemDaResultSet(rs);
+                    Integer quantity = rs.getInt("quantita");
+                    for (int i = 0; i < quantity; i++)
+                        items.add(item);
+                }
                 rs.close();
             }
-        } catch (org.h2.jdbc.JdbcSQLNonTransientException e) {
-            tentativi++;
-            connect();
-            if (tentativi < 5)
-                changeDialogo(dialogo, tentativi);
-            else
-                throw e;
-        } catch (SQLException e) {
-            tentativi++;
-            crea();
-            if (tentativi < 5)
-                changeDialogo(dialogo, tentativi);
-            else
-                throw e;
-        }
+            return items;
+        });
     }
 
-    private void loadItems(Casella c, int tentativi) throws SQLException, FileNotFoundException {
-        try {
-            String getCaselle = "SELECT * FROM Oggetto WHERE id = " + c.getId() + ";";
-            Statement stm = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_READ_ONLY);
-            ResultSet rs = stm.executeQuery(getCaselle);
-            while (rs.next()) {
-                Item item = new Item(rs.getString(2).toLowerCase());
-                item.setDescription(rs.getString(3));
-                Integer quantity = Integer.valueOf(rs.getString(4));
-                if (rs.getString(5).equals("TRUE")) {
-                    item.setPickable(true);
-                } else {
-                    item.setPickable(false);
-                }
-                if (rs.getString(6).equals("TRUE")) {
-                    item.setVisible(true);
-                } else {
-                    item.setVisible(false);
-                }
-
-                item.setAlias(getAlias(c.getId(), 0));
-                c.addOggetto(item, quantity);
-            }
-            rs.close();
-        } catch (org.h2.jdbc.JdbcSQLNonTransientException e) {
-            e.printStackTrace();
-            tentativi++;
-            connect();
-            if (tentativi < 5)
-                loadItems(c, tentativi);
-            else
-                throw e;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            tentativi++;
-            crea();
-            if (tentativi < 5)
-                loadItems(c, tentativi);
-            else
-                throw e;
-        }
-
+    private Item creaItemDaResultSet(ResultSet rs) throws SQLException {
+        Item item = new Item(rs.getString("nome"));
+        item.setDescription(rs.getString("descrizione"));
+        item.setAlias(getAlias(rs.getInt("id")));
+        item.setPickable(rs.getBoolean("pickable"));
+        item.setVisible(rs.getBoolean("visible"));
+        return item;
     }
 
-    private String[] getAlias(int id, int tentativi) throws SQLException, FileNotFoundException {
-        List<String> aliasList = new ArrayList<>();
-        String[] alias;
-        try {
-            String getAlias = "SELECT alias FROM Alias WHERE id = " + id + ";";
+    private Set<String> getAlias(int id) throws SQLException {
+        return executeWithRetry(() -> {
+            String getAlias = "SELECT * FROM Alias WHERE id = " + id + ";";
             Statement stm = conn.createStatement();
             ResultSet rs = stm.executeQuery(getAlias);
+            Set<String> alias = new HashSet<>();
             while (rs.next()) {
-                aliasList.add(rs.getString(1).toLowerCase());
-                // System.out.println(aliasList.get(aliasList.size() - 1));
+                alias.add(rs.getString("alias").toLowerCase());
             }
             rs.close();
-            alias = aliasList.toArray(new String[aliasList.size()]);
-        } catch (org.h2.jdbc.JdbcSQLNonTransientException e) {
-            tentativi++;
-            connect();
-            if (tentativi < 5)
-                alias = getAlias(id, tentativi);
-            else
-                throw e;
-        } catch (SQLException e) {
-            tentativi++;
-            crea();
-            if (tentativi < 5)
-                alias = getAlias(id, tentativi);
-            else
-                throw e;
-        }
-
-        return alias;
+            return alias;
+        });
     }
 
     public void close() throws SQLException {
         conn.close();
+    }
+
+    @FunctionalInterface
+    /**
+     * Interfaccia funzionale che rappresenta un'operazione SQL che restituisce
+     * un valore di tipo T.
+     *
+     * @param <T> il tipo del valore restituito
+     */
+    private interface SqlFunction<T> {
+        /**
+         * Applica l'operazione SQL e restituisce il risultato.
+         *
+         * @return il risultato dell'operazione SQL
+         * @throws SQLException se si verifica un errore durante l'operazione SQL
+         */
+        T apply() throws SQLException;
     }
 }

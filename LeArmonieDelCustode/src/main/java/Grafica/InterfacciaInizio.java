@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -11,6 +12,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 
 import Classifica.Client;
+import Other.GestioneDB;
 import Other.Musica;
 
 /**
@@ -24,8 +26,9 @@ public class InterfacciaInizio extends javax.swing.JFrame {
     private final Color WHITE = new Color(250, 249, 246);
     private final Musica musica = new Musica();
 
-    public InterfacciaInizio() {
+    public InterfacciaInizio() throws SQLException {
         initComponents();
+        GestioneDB.getInstance().connect();
     }
 
     private void initComponents() {
@@ -41,25 +44,29 @@ public class InterfacciaInizio extends javax.swing.JFrame {
         addWindowFocusListener(new java.awt.event.WindowFocusListener() {
             @Override
             public void windowGainedFocus(java.awt.event.WindowEvent evt) {
-                if (!musica.isPlaying()) 
+                if (!musica.isPlaying())
                     musica.playMusic("resource\\other\\menu_soundtrack.wav");
             }
 
             @Override
             public void windowLostFocus(java.awt.event.WindowEvent evt) {
-                
+
             }
         });
-        
+
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent evt) {
                 Client c = new Client();
                 try {
                     c.end();
+                    GestioneDB.getInstance().close();
                 } catch (IOException | ClassNotFoundException ex) {
                     // Viene catturata questa eccezione quando si avvia solamente il maind di InterfacciaInizio
                     Logger.getLogger(InterfacciaInizio.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (SQLException e) {
+                    // TODO Auto-generated catch block
+                    Logger.getLogger(InterfacciaInizio.class.getName()).log(Level.SEVERE, null, e);
                 }
             }
         });
@@ -189,7 +196,7 @@ public class InterfacciaInizio extends javax.swing.JFrame {
      * @param args the command line arguments
      */
     public static void main(String args[]) {
-       
+
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {
@@ -202,7 +209,12 @@ public class InterfacciaInizio extends javax.swing.JFrame {
         }
 
         java.awt.EventQueue.invokeLater(() -> {
-            new InterfacciaInizio().setVisible(true);
+            try {
+                new InterfacciaInizio().setVisible(true);
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         });
     }
 

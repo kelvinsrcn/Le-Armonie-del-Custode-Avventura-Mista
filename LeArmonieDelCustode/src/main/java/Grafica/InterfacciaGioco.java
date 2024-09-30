@@ -17,6 +17,8 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
@@ -119,6 +121,7 @@ public class InterfacciaGioco extends javax.swing.JFrame {
             music.stopMusica();
             throw ex;
         } catch (Exception ex) {
+            Logger.getLogger(InterfacciaGioco.class.getName()).log(Level.SEVERE, null, ex);
             music.stopMusica();
             throw new GameNotAvailableException();
         }
@@ -483,8 +486,7 @@ public class InterfacciaGioco extends javax.swing.JFrame {
     }
 
     private void jButton1goToMenu(java.awt.event.MouseEvent evt) {
-        InterfacciaInizio start = new InterfacciaInizio();
-        start.setVisible(true);
+        parentFrame.setVisible(true);
         confermaChiusura.dispose();
         dispose();
     }

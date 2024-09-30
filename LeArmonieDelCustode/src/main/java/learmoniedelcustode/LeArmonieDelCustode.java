@@ -67,10 +67,9 @@ public class LeArmonieDelCustode extends GameDescription implements GameObservab
 
         // load caselle gioco
         GestioneDB db = GestioneDB.getInstance();
-        currentCasella = db.loadMappa(getCaselle(), 0);
+        currentCasella = db.loadMappa(getCaselle());
         setCurrentCasella(currentCasella);
-        setDialoghi(db.loadDialoghi(false, 0));
-        db.close();
+        setDialoghi(db.loadDialoghi(false));
 
         attachObeservers();
     }

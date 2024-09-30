@@ -17,9 +17,9 @@ public class PickUpObserver implements GameObserver {
             String command = parserOutput.getInputString().split(" ")[0] + "\\s+";
             String[] inputParsed = parserOutput.getInputString().split(command);
             if (inputParsed.length == 2) {
-                String nameOBJ = inputParsed[1];
+                String nameOBJ = inputParsed[1].toLowerCase();
                 Item pickUpItem = description.getCurrentCasella().getOggetti().stream()
-                        .filter(i -> i.getName().equals(nameOBJ) || i.getAlias().contains(nameOBJ))
+                        .filter(i -> i.getName().equalsIgnoreCase(nameOBJ) || i.getAlias().contains(nameOBJ))
                         .findFirst()
                         .orElse(null);
 
